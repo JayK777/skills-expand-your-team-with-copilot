@@ -568,6 +568,9 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <button class="share-button" data-activity="${name}" aria-label="Share activity">
+          📤 Share
+        </button>
       </div>
     `;
 
@@ -587,7 +590,123 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // Add click handler for share button
+    const shareButton = activityCard.querySelector(".share-button");
+    shareButton.addEventListener("click", () => {
+      shareActivity(name, details);
+    });
+
     activitiesList.appendChild(activityCard);
+  }
+
+  // Function to share an activity via the Web Share API or a fallback dropdown
+  function shareActivity(name, details) {
+    const shareText = `Check out "${name}" at Mergington High School! ${details.description}`;
+    const shareUrl = window.location.origin + window.location.pathname;
+
+    if (navigator.share) {
+      navigator.share({
+        title: name,
+        text: shareText,
+        url: shareUrl,
+      }).catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Error sharing:", err);
+        }
+      });
+    } else {
+      showShareDropdown(name, shareText, shareUrl);
+    }
+  }
+
+  // Show a fallback share dropdown for browsers without Web Share API support
+  function showShareDropdown(name, shareText, shareUrl) {
+    // Remove any existing share dropdown
+    const existing = document.getElementById("share-dropdown");
+    if (existing) {
+      existing.remove();
+    }
+
+    const encodedText = encodeURIComponent(shareText);
+    const encodedUrl = encodeURIComponent(shareUrl);
+
+    const dropdown = document.createElement("div");
+    dropdown.id = "share-dropdown";
+    dropdown.className = "share-dropdown";
+
+    const header = document.createElement("div");
+    header.className = "share-dropdown-header";
+    const headerLabel = document.createElement("span");
+    headerLabel.textContent = `Share "${name}"`;
+    const closeBtn = document.createElement("span");
+    closeBtn.className = "share-dropdown-close";
+    closeBtn.textContent = "\u00d7";
+    header.appendChild(headerLabel);
+    header.appendChild(closeBtn);
+
+    const options = document.createElement("div");
+    options.className = "share-dropdown-options";
+
+    const twitterLink = document.createElement("a");
+    twitterLink.className = "share-option";
+    twitterLink.href = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+    twitterLink.target = "_blank";
+    twitterLink.rel = "noopener noreferrer";
+    twitterLink.textContent = "🐦 Share on Twitter";
+
+    const facebookLink = document.createElement("a");
+    facebookLink.className = "share-option";
+    facebookLink.href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+    facebookLink.target = "_blank";
+    facebookLink.rel = "noopener noreferrer";
+    facebookLink.textContent = "📘 Share on Facebook";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "share-option copy-link-button";
+    copyBtn.textContent = "🔗 Copy Link";
+
+    options.appendChild(twitterLink);
+    options.appendChild(facebookLink);
+    options.appendChild(copyBtn);
+    dropdown.appendChild(header);
+    dropdown.appendChild(options);
+
+    document.body.appendChild(dropdown);
+
+    function closeDropdown() {
+      if (dropdown.parentNode) {
+        dropdown.remove();
+      }
+      document.removeEventListener("click", outsideClickHandler);
+    }
+
+    function outsideClickHandler(e) {
+      if (!dropdown.contains(e.target)) {
+        closeDropdown();
+      }
+    }
+
+    // Copy link handler
+    copyBtn.addEventListener("click", () => {
+      if (!navigator.clipboard) {
+        showMessage("Clipboard access is not available in this browser.", "error");
+        return;
+      }
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showMessage("Link copied to clipboard!", "success");
+        closeDropdown();
+      }).catch(() => {
+        showMessage("Could not copy link.", "error");
+      });
+    });
+
+    // Close button handler
+    closeBtn.addEventListener("click", closeDropdown);
+
+    // Close when clicking outside (defer so the triggering click doesn't immediately close it)
+    setTimeout(() => {
+      document.addEventListener("click", outsideClickHandler);
+    }, 0);
   }
 
   // Event listeners for search and filter
